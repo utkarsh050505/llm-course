@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import os
+import regex as re
 from typing import IO, BinaryIO, Iterable, Optional, Type
+from collections import defaultdict
 
 import numpy.typing as npt
 import torch
-
+import heapq
+from . import helper_functions, helper_classes
 
 def run_positionwise_feedforward(
     d_model: int,
@@ -512,7 +515,6 @@ def run_load_checkpoint(
     """
     raise NotImplementedError
 
-
 def get_tokenizer(
     vocab: dict[int, bytes],
     merges: list[tuple[bytes, bytes]],
@@ -535,38 +537,118 @@ def get_tokenizer(
 
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
-    """
-    raise NotImplementedError
+    """  
+    return helper_classes.Tokenizer(vocab=vocab, merges=merges, special_tokens=special_tokens)
 
-
+# Train BPE
 def run_train_bpe(
     input_path: str | os.PathLike,
     vocab_size: int,
     special_tokens: list[str],
-    **kwargs,
 ):
-    """Given the path to an input corpus, run train a BPE tokenizer and
-    output its vocabulary and merges.
+    with open(input_path, "r", encoding="utf-8") as f:
+        text = f.read()
 
-    Args:
-        input_path: str | os.PathLike
-            Path to BPE tokenizer training data.
-        vocab_size: int
-            Total number of items in the tokenizer's vocabulary (including special tokens).
-        special_tokens: list[str]
-            A list of string special tokens to be added to the tokenizer vocabulary.
-            These strings will never be split into multiple tokens, and will always be
-            kept as a single token. If these special tokens occur in the `input_path`,
-            they are treated as any other string.
+    pretokens = helper_functions.pre_tokenizer_train(text, special_tokens)
 
-    Returns:
-        Tuple of (vocab, merges):
-            vocab: dict[int, bytes]
-                The trained tokenizer vocabulary, a mapping from int (token ID in the vocabulary)
-                to bytes (token bytes)
-            merges: list[tuple[bytes, bytes]]
-                BPE merges. Each list item is a tuple of bytes (<token1>, <token2>),
-                representing that <token1> was merged with <token2>.
-                Merges are ordered by order of creation.
-    """
-    raise NotImplementedError
+    vocab = {}
+    next_id = 0
+
+    for i in range(256): # O(1)
+        vocab[next_id] = bytes([i])
+        next_id += 1
+
+    for st in special_tokens:
+        vocab[next_id] = st.encode("utf-8")
+        next_id += 1
+
+    seqs = {}                    
+    seq_freqs = {}               
+    pair_locs = defaultdict(set) 
+    pair_counts = defaultdict(int)
+
+    seq_id = 0
+
+    for seq_tuple, freq in pretokens.items():
+        seq = list(seq_tuple)
+        seqs[seq_id] = seq
+        seq_freqs[seq_id] = freq
+
+        for i in range(len(seq) - 1):
+            pair = (seq[i], seq[i + 1])
+            pair_counts[pair] += freq
+            pair_locs[pair].add(seq_id)
+        
+        seq_id += 1
+
+    heap = []
+    for pair, freq in pair_counts.items():
+        heapq.heappush(heap, helper_classes.MergePriority(freq, pair))
+
+    merges = []
+    special_bytes_set = {st.encode("utf-8") for st in special_tokens}
+
+    while len(vocab) < vocab_size and heap:
+        node = heapq.heappop(heap)
+        freq, pair = node.freq, node.pair
+
+        if pair_counts[pair] != freq or freq == 0:
+            continue
+
+        A, B = pair
+
+        if A in special_bytes_set or B in special_bytes_set: # O(1)
+            pair_counts[pair] = 0
+            continue
+
+        new_tok = A + B
+
+        vocab[next_id] = new_tok
+        next_id += 1
+        merges.append(pair)
+
+        affected_seqs = sorted(pair_locs[pair])
+        pair_counts[pair] = 0
+        del pair_locs[pair]
+
+        updates = set()
+
+        for sid in affected_seqs:
+            seq = seqs[sid]
+            sfreq = seq_freqs[sid]
+
+            old_pairs = defaultdict(int)
+            for j in range(len(seq) - 1):
+                old_pairs[(seq[j], seq[j+1])] += 1
+
+            new_seq = []
+            i = 0
+            while i < len(seq):
+                if i + 1 < len(seq) and seq[i] == A and seq[i+1] == B:
+                    new_seq.append(new_tok)
+                    i += 2
+                else:
+                    new_seq.append(seq[i])
+                    i += 1
+            seqs[sid] = new_seq
+
+            new_pairs = defaultdict(int)
+            for j in range(len(new_seq) - 1):
+                new_pairs[(new_seq[j], new_seq[j+1])] += 1
+
+            for p, count in old_pairs.items():
+                pair_counts[p] -= count * sfreq
+                if pair_counts[p] > 0:
+                    updates.add(p)
+
+            for p, count in new_pairs.items():
+                pair_counts[p] += count * sfreq
+                pair_locs[p].add(sid)
+                updates.add(p)
+
+        for p in updates:
+            f = pair_counts[p]
+            if f > 0:
+                heapq.heappush(heap, helper_classes.MergePriority(f, p))
+
+    return vocab, merges

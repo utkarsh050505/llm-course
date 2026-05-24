@@ -1,5 +1,19 @@
 # CS336 Spring 2024 Assignment 1: Basics
 
+## Personal Progress Log
+
+This repo is my step-by-step record of completing Stanford CS336 (Spring 2024) Assignment 1.
+
+- Status: In progress
+- Completed: 2 functions in `tests/adapters.py`
+- Next: Continue implementing remaining adapters and re-run tests
+
+### How I update this log
+
+- Add a short note after each work session (what I changed, what I learned).
+- Keep a running list of functions implemented.
+- Record test results and any issues to revisit.
+
 For a full description of the assignment, see the assignment handout at
 [cs336_spring2024_assignment1_basics.pdf](./cs336_spring2024_assignment1_basics.pdf)
 

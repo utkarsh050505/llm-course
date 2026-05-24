@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Environments
+.venv/
+venv/
+.env/
+
+# Test and tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Data/artifacts
+/data/
+/outputs/
+/checkpoints/
+*.ckpt
+
+# OS
+.DS_Store
+Thumbs.db

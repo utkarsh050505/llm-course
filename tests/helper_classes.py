@@ -5,6 +5,7 @@ from collections import defaultdict
 from . import helper_functions
 import numpy.typing as npt
 import torch
+import torch.nn as nn
 import heapq
 
 class MergePriority:
@@ -136,3 +137,17 @@ class Tokenizer:
         
         if buffer:
             yield from self.encode(buffer)
+
+class RMSNorm(nn.Module):
+    def __init__(self, d_model, eps, weights):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(weights['weight'].clone())
+    
+    def forward(self, in_features: torch.FloatTensor) -> torch.FloatTensor:
+        # Calculate root mean square over the last dimension (-1)
+        mean_squared = in_features.pow(2).mean(dim=-1, keepdim=True)
+        rms = torch.sqrt(mean_squared + self.eps)
+        
+        # Normalize and apply the learnable scale factor
+        return (in_features / rms) * self.weight

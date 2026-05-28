@@ -5,7 +5,7 @@ import os
 import regex as re
 from typing import IO, BinaryIO, Iterable, Optional, Type
 from collections import defaultdict
-
+import math
 import numpy.typing as npt
 import torch
 import heapq
@@ -40,13 +40,13 @@ def run_positionwise_feedforward(
         torch.FloatTensor with the output of running your position-wise feedforward network
         with the provided `weights` on the provided `in_features`.
     """
-    # Example:
-    # If your state dict keys match, you can use `load_state_dict()`
-    # my_ffn.load_state_dict(weights)
-    # You can also manually assign the weights
-    # my_ffn.w1.weight.data = weights["w1.weight"]
-    # my_ffn.w2.weight.data = weights["w2.weight"]
-    raise NotImplementedError
+    w1 = weights['w1.weight'] # Shape - (d_ff, d_model)
+    w2 = weights['w2.weight'] # Shape - (d_model, d_ff)
+
+    layer1 = in_features @ w1.T # (*, d_model) @ (d_model, d_ff) -> (*, d_ff)
+    gelu = run_gelu(layer1) # GeLU -> (*, d_ff)
+    layer2 = gelu @ w2.T # (*, d_ff) @ (d_ff, d_model) -> (*, d_model)
+    return layer2
 
 
 def run_scaled_dot_product_attention(
@@ -334,7 +334,9 @@ def run_rmsnorm(
         FloatTensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    norm_layer = helper_classes.RMSNorm(d_model=d_model, eps=eps, weights=weights)
+    with torch.no_grad():
+        return norm_layer(in_features)
 
 
 def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
@@ -349,7 +351,8 @@ def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of applying
         GELU to each element.
     """
-    raise NotImplementedError
+    output = in_features * 0.5 * (1.0 + torch.erf(in_features/math.sqrt(2)))
+    return output
 
 
 def run_get_batch(

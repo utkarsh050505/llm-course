@@ -8,6 +8,7 @@ from collections import defaultdict
 import math
 import numpy.typing as npt
 import torch
+import torch.nn as nn
 import heapq
 from . import helper_functions, helper_classes
 
@@ -88,7 +89,20 @@ def run_scaled_dot_product_attention(
         with the output of running your scaled dot product attention
         implementation with the provided key, query, and value tensors.
     """
-    raise NotImplementedError
+    attention = Q @ K.transpose(-1, -2)
+    attention = attention / math.sqrt(Q.shape[-1])
+
+    if mask is not None:
+        attention = attention.masked_fill(mask, float('-inf'))
+    
+    attention = run_softmax(attention, dim=-1)
+
+    if pdrop is not None:
+        dropout = nn.Dropout(pdrop)
+        attention = dropout(attention)
+
+    attention = attention @ V
+    return attention
 
 
 def run_multihead_self_attention(
@@ -138,8 +152,30 @@ def run_multihead_self_attention(
         torch.FloatTensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    W_Q = torch.cat([weights[f'q_heads.{i}.weight'] for i in range(num_heads)], dim=0) # (d_k, d_model)
+    W_K = torch.cat([weights[f'k_heads.{i}.weight'] for i in range(num_heads)], dim=0) # (d_k, d_model)
+    W_V = torch.cat([weights[f'v_heads.{i}.weight'] for i in range(num_heads)], dim=0) # (d_v, d_model)
 
+    # in_features -> (B, T, d_model)
+    Q = in_features @ W_Q.T # (..., d_model) @ (d_model, d_k) -> (..., d_k)
+    K = in_features @ W_K.T # (..., d_model) @ (d_model, d_k) -> (..., d_k)
+    V = in_features @ W_V.T # (..., d_model) @ (d_model, d_v) -> (..., d_v)
+
+    B, T, D = Q.shape
+    d_k = d_v = D // num_heads
+    Q = Q.reshape(B, T, num_heads, d_k).permute(0, 2, 1, 3)
+    K = K.reshape(B, T, num_heads, d_k).permute(0, 2, 1, 3)
+    V = V.reshape(B, T, num_heads, d_v).permute(0, 2, 1, 3)
+
+    attn_mask = torch.triu(torch.ones(T, T, dtype=torch.bool, device=in_features.device), diagonal=1)
+
+    attention = run_scaled_dot_product_attention(K, Q, V, mask=attn_mask, pdrop=attn_pdrop)
+
+    attention = attention.permute(0, 2, 1, 3)
+    attention = attention.reshape(B, T, D)
+    attention = attention @ weights['output_proj.weight'].T
+
+    return attention
 
 def run_transformer_block(
     d_model: int,
@@ -396,8 +432,12 @@ def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    max_vals = in_features.max(dim=dim, keepdim=True).values
+    shifted = in_features - max_vals
+    exp_x = torch.exp(shifted)
+    sum_exp = torch.sum(exp_x, dim=dim, keepdim=True)
 
+    return exp_x / sum_exp
 
 def run_cross_entropy(inputs: torch.FloatTensor, targets: torch.LongTensor):
     """Given a tensor of inputs and targets, compute the average cross-entropy

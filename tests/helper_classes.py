@@ -6,6 +6,8 @@ from . import helper_functions
 import numpy.typing as npt
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import math
 import heapq
 
 class MergePriority:
@@ -151,3 +153,66 @@ class RMSNorm(nn.Module):
         
         # Normalize and apply the learnable scale factor
         return (in_features / rms) * self.weight
+
+class CausalMultiHeadSelfAttention(nn.Module):
+    def __init__(self, d_model: int, num_heads: int, attn_pdrop: float | None = None):
+        super().__init__()
+        assert d_model % num_heads == 0, "d_model must be perfectly divisible by num_heads"
+        
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_k = d_model // num_heads
+        
+        # Unified projection layers for efficiency
+        self.q_proj = nn.Linear(d_model, d_model)
+        self.k_proj = nn.Linear(d_model, d_model)
+        self.v_proj = nn.Linear(d_model, d_model)
+        
+        # Output projection (W^O)
+        self.out_proj = nn.Linear(d_model, d_model)
+        
+        # Attention dropout
+        self.attn_dropout = nn.Dropout(attn_pdrop) if attn_pdrop is not None else nn.Identity()
+
+    def forward(self, in_features: torch.Tensor) -> torch.Tensor:
+        # in_features shape: (B, T, d_model)
+        B, T, D = in_features.shape
+        
+        # 1. Project inputs to Q, K, V tensors
+        Q = self.q_proj(in_features)  # (B, T, d_model)
+        K = self.k_proj(in_features)  # (B, T, d_model)
+        V = self.v_proj(in_features)  # (B, T, d_model)
+        
+        # 2. Reshape and permute for multi-head parallel processing
+        # From: (B, T, D) -> (B, T, num_heads, d_k) -> To: (B, num_heads, T, d_k)
+        Q = Q.view(B, T, self.num_heads, self.d_k).transpose(1, 2)
+        K = K.view(B, T, self.num_heads, self.d_k).transpose(1, 2)
+        V = V.view(B, T, self.num_heads, self.d_k).transpose(1, 2)
+        
+        # 3. Compute raw scaled dot-product attention scores
+        # (B, num_heads, T, d_k) @ (B, num_heads, d_k, T) -> (B, num_heads, T, T)
+        attn_scores = (Q @ K.transpose(-2, -1)) / math.sqrt(self.d_k)
+        
+        # 4. Generate and apply the Causal Matrix Mask
+        # True means masked out (future tokens), False means allowed (past tokens)
+        attn_mask = torch.triu(torch.ones(T, T, dtype=torch.bool, device=in_features.device), diagonal=1)
+        
+        # Fill future token slots with negative infinity so softmax zeroes them out
+        attn_scores = attn_scores.masked_fill(attn_mask, float('-inf'))
+        
+        # 5. Normalize scores to probabilities and apply dropout
+        attn_probs = F.softmax(attn_scores, dim=-1)
+        attn_probs = self.attn_dropout(attn_probs)
+        
+        # 6. Weighted aggregation of values
+        # (B, num_heads, T, T) @ (B, num_heads, T, d_k) -> (B, num_heads, T, d_k)
+        attention = attn_probs @ V
+        
+        # 7. Concatenate all heads back together
+        # From: (B, num_heads, T, d_k) -> (B, T, num_heads, d_k) -> (B, T, d_model)
+        attention = attention.transpose(1, 2).contiguous().view(B, T, D)
+        
+        # 8. Final linear output projection
+        output = self.out_proj(attention)
+        
+        return output

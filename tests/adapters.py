@@ -175,7 +175,7 @@ def run_multihead_self_attention(
     attention = attention.reshape(B, T, D)
     attention = attention @ weights['output_proj.weight'].T
 
-    return attention
+    return attention # (B, T, D_model)
 
 def run_transformer_block(
     d_model: int,
@@ -246,8 +246,43 @@ def run_transformer_block(
         FloatTensor of shape (batch_size, sequence_length, d_model) with the output of
         running the Transformer block on the input features.
     """
-    raise NotImplementedError
+    rms1_weights = {'weight': weights['ln1.weight']}
+    rms2_weights = {'weight': weights['ln2.weight']}
 
+    ffn_weight : dict[str, torch.FloatTensor] = {}
+    ffn_weight['w1.weight'] = weights['ffn.w1.weight']
+    ffn_weight['w2.weight'] = weights['ffn.w2.weight']
+
+    mha_weights: dict[str, torch.FloatTensor] = {}
+
+    production_q_weight = weights['attn.q_proj.weight']
+    production_k_weight = weights['attn.k_proj.weight']
+    production_v_weight = weights['attn.v_proj.weight']
+
+    # Just reverse of torch.cat
+    q_heads_list = torch.chunk(production_q_weight, chunks=num_heads, dim=0)
+    k_heads_list = torch.chunk(production_k_weight, chunks=num_heads, dim=0)
+    v_heads_list = torch.chunk(production_v_weight, chunks=num_heads, dim=0)
+
+    for i in range(num_heads):
+        mha_weights[f'q_heads.{i}.weight'] = q_heads_list[i]
+        mha_weights[f'k_heads.{i}.weight'] = k_heads_list[i]
+        mha_weights[f'v_heads.{i}.weight'] = v_heads_list[i]
+    
+    mha_weights['output_proj.weight'] = weights['attn.output_proj.weight']
+    epsilon = 1e-5
+    dropout = nn.Dropout(residual_pdrop)
+
+    # First Sub-Layer
+    RMSNorm1 = run_rmsnorm(d_model=d_model, in_features=in_features, weights=rms1_weights, eps=epsilon)
+    MHA = run_multihead_self_attention(d_model=d_model, num_heads=num_heads, attn_pdrop=attn_pdrop, weights=mha_weights, in_features=RMSNorm1)
+    y = in_features + dropout(MHA)
+    
+    # Second Sub-Layer
+    RMSNorm2 = run_rmsnorm(d_model=d_model, in_features=y, weights=rms2_weights, eps=epsilon)
+    FFN = run_positionwise_feedforward(d_model=d_model, d_ff=d_ff, weights=ffn_weight, in_features=RMSNorm2)
+    output = y + dropout(FFN)
+    return output
 
 def run_transformer_lm(
     vocab_size: int,
@@ -339,8 +374,60 @@ def run_transformer_lm(
         FloatTensor of shape (batch size, sequence_length, vocab_size) with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    dropout = nn.Dropout(residual_pdrop)
 
+    # Token Embedding
+    token_embedding_weights = weights['token_embeddings.weight']
+    embedded_tokens = token_embedding_weights[in_indices]
+
+    # Positional Embedding
+    T = in_indices.shape[1]
+    position_embedding_weight = weights['position_embeddings.weight']
+    positions = torch.arange(T, device=in_indices.device) # Create tensor of position [1, 2, ..., T-1]
+    position_embedding = position_embedding_weight[positions]
+
+    # Add both embeddings
+    x = embedded_tokens + position_embedding
+
+    # Dropout
+    x = dropout(x)
+
+    # Layer Transformer Block
+    for i in range(num_layers):
+
+        transformer_weight = {}
+        transformer_weight['attn.k_proj.weight'] = weights[f'layers.{i}.attn.k_proj.weight']
+        transformer_weight['attn.q_proj.weight'] = weights[f'layers.{i}.attn.q_proj.weight']
+        transformer_weight['attn.v_proj.weight'] = weights[f'layers.{i}.attn.v_proj.weight']
+        transformer_weight['attn.output_proj.weight'] = weights[f'layers.{i}.attn.output_proj.weight']
+        transformer_weight['ln1.weight'] = weights[f'layers.{i}.ln1.weight']
+        transformer_weight['ln2.weight'] = weights[f'layers.{i}.ln2.weight']
+        transformer_weight['ffn.w1.weight'] = weights[f'layers.{i}.ffn.w1.weight']
+        transformer_weight['ffn.w2.weight'] = weights[f'layers.{i}.ffn.w2.weight']
+        
+        x = run_transformer_block(
+            d_model=d_model, 
+            d_ff=d_ff, 
+            attn_pdrop=attn_pdrop, 
+            residual_pdrop=residual_pdrop, 
+            num_heads=num_heads, 
+            weights=transformer_weight, 
+            in_features=x)
+    
+    # Final Norm
+    x = run_rmsnorm(
+        d_model=d_model, 
+        eps=1e-5, 
+        weights={'weight': weights['ln_final.weight']}, 
+        in_features=x)
+    
+    # Linear (Output Embedding)
+    output_embedding_weight = weights['lm_head.weight']
+    x = x @ output_embedding_weight.T
+
+    # Return predicted unnormalized next-word distribution (therefore no softmax)
+    return x
+    
 
 def run_rmsnorm(
     d_model: int,

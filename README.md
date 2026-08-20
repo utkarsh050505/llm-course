@@ -8,7 +8,7 @@ Welcome to Assignment 1! In this assignment, you will build all of the core comp
 
 For detailed explanations, mathematical formulas, implementation tips, and test mappings for every function, open the included HTML guide in your browser:
 
-👉 **[`cs336_assignment1_student.html`](./cs336_assignment1_student.html)** *(Double-click or open with Chrome/Edge)*
+👉 **[`index.html`](./index.html)** *(Double-click or open with Chrome/Edge)*
 
 ---
 
@@ -59,7 +59,7 @@ python -m pytest tests/ -v --tb=short
 
 ```text
 llm-course/
-├── cs336_assignment1_student.html  # Interactive visual guide for students
+├── index.html                      # Interactive visual guide for students
 ├── requirements.txt                # Python dependencies
 ├── tests/
 │   ├── adapters.py                 # ✏️ Implementation stubs (functions you fill in)

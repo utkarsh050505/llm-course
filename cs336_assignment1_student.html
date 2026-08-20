@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CS336 Assignment 1 — Student Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:     #111318;
+      --bg2:    #1a1d24;
+      --bg3:    #21252f;
+      --line:   #2a2f3d;
+      --text:   #dce3f0;
+      --muted:  #7a859a;
+      --accent: #6c63ff;
+      --green:  #3ecf8e;
+      --yellow: #f5a623;
+      --red:    #e05252;
+      --blue:   #4ea8de;
+      --teal:   #2dd4bf;
+      --code-bg:#0d1117;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.7; }
+
+    /* topbar */
+    .topbar { background: var(--bg2); border-bottom: 1px solid var(--line); padding: 16px 28px; display: flex; align-items: center; gap: 14px; }
+    .topbar-badge { background: rgba(108,99,255,.15); border: 1px solid rgba(108,99,255,.3); color: #9d97ff; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 4px; }
+    .topbar-title { font-size: 15px; font-weight: 600; }
+
+    /* layout */
+    .wrap { display: flex; min-height: calc(100vh - 53px); }
+
+    /* sidebar */
+    .sidebar { width: 220px; min-width: 220px; background: var(--bg2); border-right: 1px solid var(--line); padding: 20px 0; position: sticky; top: 0; height: calc(100vh - 53px); overflow-y: auto; flex-shrink: 0; }
+    .sb-group { padding: 6px 16px; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-top: 18px; }
+    .sb-group:first-child { margin-top: 0; }
+    .sb-link { display: flex; align-items: center; gap: 8px; padding: 6px 16px; font-size: 12.5px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; }
+    .sb-link:hover { color: var(--text); background: rgba(108,99,255,.05); border-left-color: var(--accent); }
+    .sb-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .dot-done { background: var(--green); }
+    .dot-todo { background: var(--yellow); }
+
+    /* main */
+    main { flex: 1; padding: 36px 44px 80px; max-width: 860px; }
+
+    /* section title */
+    .section { font-size: 20px; font-weight: 700; margin: 48px 0 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+    .section:first-of-type { margin-top: 0; }
+    .section-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 2px 8px; border-radius: 3px; }
+    .badge-given { background: rgba(62,207,142,.12); color: var(--green); }
+    .badge-implement { background: rgba(245,166,35,.12); color: var(--yellow); }
+
+    /* legend */
+    .legend { display: flex; gap: 20px; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; margin-bottom: 28px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+
+    /* status banner */
+    .status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 3px 10px; border-radius: 4px; margin-bottom: 10px; }
+    .status-given { background: rgba(62,207,142,.1); color: var(--green); }
+    .status-todo  { background: rgba(245,166,35,.1);  color: var(--yellow); }
+
+    /* card */
+    .card { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; margin: 16px 0; overflow: hidden; }
+    .card-head { background: var(--bg3); border-bottom: 1px solid var(--line); padding: 13px 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .card-num { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .card-title { font-size: 14px; font-weight: 600; flex: 1; }
+    .card-file { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); background: rgba(255,255,255,.05); padding: 2px 7px; border-radius: 3px; }
+    .card-body { padding: 16px 18px 10px; }
+
+    /* boxes inside card */
+    .box { border-radius: 7px; padding: 12px 15px; margin: 10px 0; }
+    .box-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+    .box-formula { background: var(--bg3); border: 1px solid var(--line); }
+    .box-formula .box-label { color: var(--muted); }
+    .box-code   { background: var(--code-bg); border: 1px solid var(--line); }
+    .box-code .box-label { color: #9d97ff; }
+    .box-test   { background: rgba(62,207,142,.06); border: 1px solid rgba(62,207,142,.2); }
+    .box-test .box-label { color: var(--green); }
+    .box-warn   { background: rgba(224,82,82,.06); border: 1px solid rgba(224,82,82,.2); }
+    .box-warn .box-label { color: var(--red); }
+    .box-helper { background: rgba(78,168,222,.06); border: 1px solid rgba(78,168,222,.2); }
+    .box-helper .box-label { color: var(--blue); }
+    .box-given  { background: rgba(62,207,142,.04); border: 1px solid rgba(62,207,142,.15); }
+    .box-given .box-label { color: var(--green); }
+
+    pre { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #c9d6e8; line-height: 1.65; overflow-x: auto; margin: 0; }
+    code { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; background: rgba(108,99,255,.1); color: #b3aeff; padding: 1px 5px; border-radius: 3px; }
+    pre code { background: none; color: inherit; padding: 0; }
+    .kw  { color: #c792ea; }
+    .fn  { color: #82aaff; }
+    .tp  { color: #ffcb6b; }
+    .cm  { color: #546e7a; }
+    .ret { color: #c3e88d; }
+    .st  { color: #c3e88d; }
+    p { margin-bottom: 10px; font-size: 14px; color: var(--muted); }
+    p strong { color: var(--text); }
+    ul { padding-left: 20px; margin: 6px 0; }
+    li { font-size: 13.5px; color: var(--muted); margin-bottom: 3px; }
+    li strong { color: var(--text); }
+
+    /* given file card */
+    .given-card { background: var(--bg2); border: 1px solid rgba(62,207,142,.2); border-radius: 10px; margin: 14px 0; padding: 16px 18px; }
+    .given-card-title { font-size: 13px; font-weight: 600; color: var(--green); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .given-card-title span { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); font-weight: 400; }
+
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+    th { background: var(--bg3); color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--line); }
+    td { padding: 7px 12px; border-bottom: 1px solid rgba(42,47,61,.5); color: var(--muted); vertical-align: top; }
+    td:first-child { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-badge">CS336</span>
+  <span class="topbar-title">Assignment 1 — Build a Transformer LM From Scratch</span>
+</div>
+
+<div class="wrap">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sb-group">Getting Started</div>
+  <a class="sb-link" href="#env"><span class="sb-dot" style="background:var(--yellow)"></span>Conda Setup</a>
+  <a class="sb-link" href="#how"><span class="sb-dot" style="background:var(--blue)"></span>File map</a>
+  <a class="sb-link" href="#given"><span class="sb-dot dot-done"></span>Already given</a>
+
+  <div class="sb-group">§2 BPE Tokenizer</div>
+  <a class="sb-link" href="#bpe"><span class="sb-dot dot-todo"></span>MergePriority</a>
+  <a class="sb-link" href="#train-bpe"><span class="sb-dot dot-todo"></span>run_train_bpe</a>
+  <a class="sb-link" href="#tokenizer"><span class="sb-dot dot-todo"></span>Tokenizer class</a>
+
+  <div class="sb-group">§3 Transformer</div>
+  <a class="sb-link" href="#rmsnorm"><span class="sb-dot dot-todo"></span>RMSNorm</a>
+  <a class="sb-link" href="#gelu"><span class="sb-dot dot-todo"></span>run_gelu</a>
+  <a class="sb-link" href="#ffn"><span class="sb-dot dot-todo"></span>run_positionwise_ffn</a>
+  <a class="sb-link" href="#softmax"><span class="sb-dot dot-todo"></span>run_softmax</a>
+  <a class="sb-link" href="#attn"><span class="sb-dot dot-todo"></span>run_sdp_attention</a>
+  <a class="sb-link" href="#mha"><span class="sb-dot dot-todo"></span>run_multihead_attn</a>
+  <a class="sb-link" href="#block"><span class="sb-dot dot-todo"></span>run_transformer_block</a>
+  <a class="sb-link" href="#lm"><span class="sb-dot dot-todo"></span>run_transformer_lm</a>
+
+  <div class="sb-group">§4 Training</div>
+  <a class="sb-link" href="#ce"><span class="sb-dot dot-todo"></span>run_cross_entropy</a>
+  <a class="sb-link" href="#adamw"><span class="sb-dot dot-todo"></span>AdamW</a>
+  <a class="sb-link" href="#lr"><span class="sb-dot dot-todo"></span>LR schedule</a>
+  <a class="sb-link" href="#clip"><span class="sb-dot dot-todo"></span>Gradient clipping</a>
+
+  <div class="sb-group">§5 Loop</div>
+  <a class="sb-link" href="#batch"><span class="sb-dot dot-todo"></span>run_get_batch</a>
+  <a class="sb-link" href="#ckpt"><span class="sb-dot dot-todo"></span>Checkpointing</a>
+</nav>
+
+<!-- MAIN -->
+<main>
+
+<!-- ════════════════════════════════ CONDA SETUP ════════════════════════════════ -->
+<div id="env">
+  <h2 class="section"><span class="section-badge badge-implement">Step 0</span> Prerequisite: Conda Environment Setup</h2>
+
+  <div class="box box-warn" style="margin-bottom:14px;">
+    <div class="box-label">⚠ Crucial: Always Activate Your Conda Environment First!</div>
+    <p style="margin:0;font-size:13.5px;color:var(--text);">Before running any <code>pytest</code> test or script, you <strong>MUST</strong> activate the <code>cs336_basics</code> conda environment. If you run in base Python, you will get errors like <code>No module named pytest</code> or missing dependencies.</p>
+  </div>
+
+  <div class="box box-code">
+    <div class="box-label">1. Create &amp; Activate Environment (Run once in PowerShell / CMD)</div>
+    <pre><span class="cm"># 1. Create the environment with Python 3.10</span>
+conda create -n cs336_basics python=3.10 -y
+
+<span class="cm"># 2. Activate the environment (REQUIRED every time you open a terminal!)</span>
+conda activate cs336_basics
+
+<span class="cm"># 3. Install required packages</span>
+pip install -r requirements.txt</pre>
+  </div>
+
+  <div class="box box-test" style="margin-top:12px;">
+    <div class="box-label">2. Verify Your Environment Is Active</div>
+    <p style="margin-bottom:6px;font-size:13px;">Your terminal prompt must start with <code>(cs336_basics)</code>:</p>
+    <pre>(cs336_basics) A:\course\stanford-cs336-LLM&gt; python -m pytest tests\test_train_bpe.py -v</pre>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ HOW IT WORKS ════════════════════════════════ -->
+<div id="how">
+  <h2 class="section"><span class="section-badge badge-given">Overview</span> How This Assignment Works</h2>
+
+  <p>The tests call functions in <code>adapters.py</code>. Those functions call classes/helpers you write in <code>helper_classes.py</code>. Your job is to fill in every <code>raise NotImplementedError</code>. Nothing else.</p>
+
+  <div class="box box-code" style="margin-top:14px;">
+    <div class="box-label">File map</div>
+    <pre>tests/
+  adapters.py        ← <span style="color:var(--yellow)">stub functions — YOU fill these in</span>
+  helper_classes.py  ← <span style="color:var(--yellow)">stub classes  — YOU fill these in</span>
+  helper_functions.py← <span style="color:var(--green)">GIVEN — pre-tokenizer utils, do not edit</span>
+  common.py          ← <span style="color:var(--green)">GIVEN — fixture paths + gpt2_bytes_to_unicode()</span>
+  test_train_bpe.py  ← tests for run_train_bpe
+  test_tokenizer.py  ← tests for Tokenizer (encode / decode)
+  test_model.py      ← tests for all Transformer components
+  test_nn_utils.py   ← tests for softmax, cross-entropy, gradient clipping
+  test_optimizer.py  ← tests for AdamW + LR schedule
+  test_serialization.py ← tests for save/load checkpoint
+  test_data.py       ← tests for run_get_batch</pre>
+  </div>
+
+  <div class="box box-test" style="margin-top:12px;">
+    <div class="box-label">Run all tests at once (inside conda env)</div>
+    <pre>conda activate cs336_basics
+python -m pytest tests\ -v --tb=short</pre>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ ALREADY GIVEN ════════════════════════════════ -->
+<div id="given">
+  <h2 class="section"><span class="section-badge badge-given">✓ Already Given</span> Code You Do NOT Need to Write</h2>
+
+  <p>These are implemented for you. You only need to <em>use</em> them from your own code.</p>
+
+  <div class="given-card">
+    <div class="given-card-title">helper_functions.py <span>— pre-tokenizer utilities</span></div>
+    <table>
+      <thead><tr><th>Function</th><th>What it does</th><th>Use it when</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>build_pretokenizer_pattern(special_tokens)</td>
+          <td>Returns a compiled regex that splits text into word-level chunks (the GPT-2 regex). Handles special tokens first.</td>
+          <td>Inside <code>Tokenizer.encode()</code> and <code>Tokenizer.encode_iterable()</code> to get pre-token chunks before applying BPE merges.</td>
+        </tr>
+        <tr>
+          <td>pre_tokenizer_train(text, special_tokens)</td>
+          <td>Splits the full training corpus and returns a <code>dict[tuple[bytes], int]</code> — each unique pre-token (as a tuple of single bytes) mapped to how many times it appears.</td>
+          <td>Inside <code>run_train_bpe()</code> as step one: turn raw text into a frequency-counted byte-tuple dictionary.</td>
+        </tr>
+        <tr>
+          <td>pre_tokenizer_encode(text, special_tokens)</td>
+          <td>Splits text into a flat list of bytes, handling special tokens atomically.</td>
+          <td>Optional — you may or may not need this; <code>Tokenizer.encode()</code> can also use <code>build_pretokenizer_pattern</code> directly.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="box box-code" style="margin-top:12px;">
+      <div class="box-label">Example usage in run_train_bpe</div>
+      <pre><span class="kw">from</span> . <span class="kw">import</span> helper_functions
+
+<span class="cm"># Step 1: get pre-token frequency dict from the corpus</span>
+pretokens = helper_functions.pre_tokenizer_train(text, special_tokens)
+<span class="cm"># pretokens looks like:
+# { (b'l', b'o', b'w'): 5,
+#   (b'n', b'e', b'w', b'e', b's', b't'): 6, ... }</span></pre>
+    </div>
+  </div>
+
+  <div class="given-card" style="margin-top:12px;">
+    <div class="given-card-title">common.py <span>— test utilities</span></div>
+    <table>
+      <thead><tr><th>What</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>FIXTURES_PATH</td><td>Path to the <code>tests/fixtures/</code> folder. Tests use this to load reference weights and expected outputs.</td></tr>
+        <tr><td>gpt2_bytes_to_unicode()</td><td>Maps each byte 0–255 to a printable character (GPT-2 encoding trick). Used by tests to decode the reference merges file. You don't need to use this yourself.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="given-card" style="margin-top:12px;">
+    <div class="given-card-title">adapters.py — get_tokenizer() <span>— already wired up</span></div>
+    <p style="margin:0;font-size:13px;">This single function is pre-implemented. It just calls <code>helper_classes.Tokenizer(vocab, merges, special_tokens)</code>. Once you implement the <code>Tokenizer</code> class in <code>helper_classes.py</code>, this adapter works automatically.</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ §2 BPE ════════════════════════════════ -->
+<h2 class="section" style="margin-top:52px;"><span class="section-badge badge-implement">§2</span> BPE Tokenizer</h2>
+
+<!-- MergePriority -->
+<div id="bpe" class="card">
+  <div class="card-head">
+    <div class="card-num">1</div>
+    <div class="card-title">MergePriority</div>
+    <span class="card-file">helper_classes.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <p>A wrapper so Python's <code>heapq</code> (a min-heap) behaves like a max-heap for BPE. Used inside <code>run_train_bpe</code> to always pop the most frequent merge candidate.</p>
+
+    <div class="box box-code">
+      <div class="box-label">What you fill in</div>
+      <pre><span class="kw">class</span> <span class="fn">MergePriority</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, freq, pair):
+        self.freq = freq   <span class="cm"># how many times this pair appears</span>
+        self.pair = pair   <span class="cm"># (bytes_a, bytes_b)</span>
+
+    <span class="kw">def</span> <span class="fn">__lt__</span>(self, other):
+        <span class="cm"># heapq always pops the "smallest". We want HIGHEST freq first.
+        # Tie-break: if freq is equal, return the LEXICOGRAPHICALLY GREATER pair.
+        # Example: (b'A', b'C') beats (b'A', b'B') on a tie.</span>
+        raise NotImplementedError</pre>
+    </div>
+
+    <div class="box box-helper">
+      <div class="box-label">How it connects</div>
+      <pre><span class="kw">import</span> heapq
+heap = []
+heapq.heappush(heap, MergePriority(freq=10, pair=(b<span class="st">'t'</span>, b<span class="st">'h'</span>)))
+heapq.heappush(heap, MergePriority(freq=25, pair=(b<span class="st">'e'</span>, b<span class="st">'s'</span>)))
+node = heapq.heappop(heap)   <span class="cm"># should pop freq=25 first</span>
+print(node.freq, node.pair)  <span class="cm"># 25, (b'e', b's')</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- run_train_bpe -->
+<div id="train-bpe" class="card">
+  <div class="card-head">
+    <div class="card-num">2</div>
+    <div class="card-title">run_train_bpe</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <p>Train a byte-level BPE tokenizer from scratch on a text file.</p>
+
+    <div class="box box-formula">
+      <div class="box-label">Algorithm</div>
+      <pre>1. Call helper_functions.pre_tokenizer_train(text, special_tokens)
+   → get dict: {(b'l', b'o', b'w'): 5, ...}
+
+2. Initialize vocab: ids 0–255 map to single bytes.
+   Then add special tokens as single entries.
+
+3. Build pair_counts (how often each adjacent pair appears across all
+   pre-tokens, weighted by frequency) and pair_locs (which pre-tokens
+   contain each pair).
+
+4. Push all pairs onto a heap of MergePriority objects.
+
+5. Loop until len(vocab) == vocab_size:
+   a. Pop best pair from heap. Skip if its stored count is stale.
+   b. Skip if either element is a special token.
+   c. Merge: add new_token = A+B to vocab, record (A,B) in merges list.
+   d. For every pre-token containing this pair:
+      - Remove old pairs that overlap the merge site.
+      - Add new pairs created by the merge.
+      - Push updated MergePriority entries for changed pairs.</pre>
+    </div>
+
+    <div class="box box-helper">
+      <div class="box-label">Helper functions you should use</div>
+      <pre><span class="cm"># From helper_functions.py (already imported in adapters.py)</span>
+pretokens = helper_functions.pre_tokenizer_train(text, special_tokens)
+<span class="cm"># Returns: dict[tuple[bytes, ...], int]</span>
+
+<span class="cm"># From helper_classes.py</span>
+heapq.heappush(heap, helper_classes.MergePriority(freq, pair))</pre>
+    </div>
+
+    <div class="box box-warn">
+      <div class="box-label">⚠ Efficiency — do not skip</div>
+      <p style="margin:0;font-size:13px;">After each merge, <strong>only update pair counts for pairs overlapping the merge site</strong>. Do not re-scan the whole corpus. The speed test runs on a small corpus and fails if your implementation takes &gt;1.5 seconds.</p>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Tests  (test_train_bpe.py)</div>
+      <pre><span class="cm"># test_train_bpe — checks vocab and merges match reference output</span>
+python -m pytest tests\test_train_bpe.py::test_train_bpe -v
+
+<span class="cm"># test_train_bpe_speed — must complete in &lt;1.5 seconds</span>
+python -m pytest tests\test_train_bpe.py::test_train_bpe_speed -v
+
+<span class="cm"># Both at once</span>
+python -m pytest tests\test_train_bpe.py -v</pre>
+    </div>
+  </div>
+</div>
+
+<!-- Tokenizer -->
+<div id="tokenizer" class="card">
+  <div class="card-head">
+    <div class="card-num">3</div>
+    <div class="card-title">Tokenizer class</div>
+    <span class="card-file">helper_classes.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <p>The tokenizer converts between strings and token ID lists using the vocab and merges you trained.</p>
+
+    <div class="box box-code">
+      <div class="box-label">Methods to implement</div>
+      <pre><span class="kw">class</span> <span class="fn">Tokenizer</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab, merges, special_tokens=None):
+        <span class="cm"># Store vocab, merges, special_tokens.
+        # Build reverse dict: bytes → token_id  (for fast encode lookups)
+        # If special_tokens have bytes not yet in vocab, add them.</span>
+
+    <span class="kw">def</span> <span class="fn">encode</span>(self, text: <span class="tp">str</span>) <span class="ret">-&gt; list[int]</span>:
+        <span class="cm"># 1. Split on special tokens first (longest match first).
+        #    Each special token → its ID, no BPE applied.
+        # 2. For remaining pieces, call build_pretokenizer_pattern()
+        #    to get word-level chunks.
+        # 3. For each chunk: start as individual UTF-8 bytes,
+        #    apply each merge in order (left to right), look up IDs.</span>
+
+    <span class="kw">def</span> <span class="fn">decode</span>(self, ids: <span class="tp">list[int]</span>) <span class="ret">-&gt; str</span>:
+        <span class="cm"># vocab[id] → bytes; concat all; .decode('utf-8', errors='replace')</span>
+
+    <span class="kw">def</span> <span class="fn">encode_iterable</span>(self, iterable) <span class="ret">-&gt; Iterator[int]</span>:
+        <span class="cm"># For large files: buffer chunks, encode complete pre-tokens,
+        # yield IDs lazily without loading entire file into memory.</span>
+
+    <span class="kw">@classmethod</span>
+    <span class="kw">def</span> <span class="fn">from_files</span>(cls, vocab_filepath, merges_filepath, special_tokens=None):
+        <span class="cm"># Load vocab JSON and merges text file, return a Tokenizer.</span></pre>
+    </div>
+
+    <div class="box box-helper">
+      <div class="box-label">Helper you must use inside encode()</div>
+      <pre><span class="kw">from</span> . <span class="kw">import</span> helper_functions
+pattern = helper_functions.build_pretokenizer_pattern([])  <span class="cm"># no special tokens</span>
+<span class="cm"># Use pattern.finditer(text) to iterate over word-level pre-token chunks</span>
+<span class="kw">for</span> m <span class="kw">in</span> pattern.finditer(piece):
+    word = m.group(0)
+    tokens = [bytes([b]) <span class="kw">for</span> b <span class="kw">in</span> word.encode(<span class="st">'utf-8'</span>)]
+    <span class="cm"># ... apply merges ...</span></pre>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Tests  (test_tokenizer.py)</div>
+      <pre><span class="cm"># The tokenizer tests load the real GPT-2 vocab/merges from fixtures/
+# and check that your encode() matches tiktoken's output.</span>
+
+<span class="cm"># Run all tokenizer tests</span>
+python -m pytest tests\test_tokenizer.py -v
+
+<span class="cm"># Run a single test</span>
+python -m pytest tests\test_tokenizer.py::test_encode -v</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ §3 TRANSFORMER ════════════════════════════════ -->
+<h2 class="section"><span class="section-badge badge-implement">§3</span> Transformer Architecture</h2>
+<p>All model tests load pre-saved reference weights and expected outputs from <code>tests/fixtures/</code> and check that your output matches within <code>atol=1e-6</code>.</p>
+
+<!-- RMSNorm -->
+<div id="rmsnorm" class="card">
+  <div class="card-head">
+    <div class="card-num">4</div>
+    <div class="card-title">RMSNorm</div>
+    <span class="card-file">helper_classes.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Formula (applied along last dim)</div>
+      <pre>RMS(a)      = sqrt( mean(a²) + ε )
+RMSNorm(aᵢ) = (aᵢ / RMS(a)) × gᵢ
+
+ε = 1e-5   (passed in as eps)
+g = learnable gain, shape (d_model,), initialized from weights['weight']</pre>
+    </div>
+
+    <div class="box box-code">
+      <div class="box-label">Implement in RMSNorm class</div>
+      <pre><span class="kw">class</span> <span class="fn">RMSNorm</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, eps, weights):
+        super().__init__()
+        <span class="cm"># self.eps = eps
+        # self.weight = nn.Parameter(weights['weight'].clone())</span>
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, in_features):
+        <span class="cm"># in_features: (*, d_model)
+        # return same shape</span></pre>
+    </div>
+
+    <p>Then wire it up in <code>adapters.py</code> → <code>run_rmsnorm</code> should instantiate your <code>RMSNorm</code> and call it.</p>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_model.py)</div>
+      <pre>python -m pytest tests\test_model.py::test_rmsnorm -v
+<span class="cm"># Loads fixtures/rmsnorm_weights.pt and fixtures/in_features.pt
+# Checks output matches fixtures/rmsnorm_expected_output.pt within atol=1e-6</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- GELU -->
+<div id="gelu" class="card">
+  <div class="card-head">
+    <div class="card-num">5</div>
+    <div class="card-title">run_gelu</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Formula</div>
+      <pre>GELU(x) = x × 0.5 × (1 + erf(x / √2))
+Use: torch.erf — do NOT use torch.nn.functional.gelu</pre>
+    </div>
+    <div class="box box-test">
+      <div class="box-label">✓ Tests  (test_model.py)</div>
+      <pre>python -m pytest tests\test_model.py::test_gelu -v
+python -m pytest tests\test_model.py::test_gelu_matches_pytorch -v
+<span class="cm"># Checks your output matches F.gelu(x) within atol=1e-6</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- FFN -->
+<div id="ffn" class="card">
+  <div class="card-head">
+    <div class="card-num">6</div>
+    <div class="card-title">run_positionwise_feedforward</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Formula (no bias)</div>
+      <pre>FFN(x) = GELU(x @ W1ᵀ) @ W2ᵀ
+
+weights['w1.weight'] shape: (d_ff, d_model)
+weights['w2.weight'] shape: (d_model, d_ff)
+d_ff = 4 × d_model  (always)</pre>
+    </div>
+
+    <div class="box box-helper">
+      <div class="box-label">Call your run_gelu from inside here</div>
+      <pre>layer1 = in_features @ weights[<span class="st">'w1.weight'</span>].T   <span class="cm"># (*, d_ff)</span>
+gelu   = run_gelu(layer1)
+layer2 = gelu @ weights[<span class="st">'w2.weight'</span>].T         <span class="cm"># (*, d_model)</span></pre>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_model.py)</div>
+      <pre>python -m pytest tests\test_model.py::test_positionwise_feedforward -v
+<span class="cm"># d_model=64, d_ff=128; loads fixtures/positionwise_feedforward_weights.pt</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Softmax -->
+<div id="softmax" class="card">
+  <div class="card-head">
+    <div class="card-num">7</div>
+    <div class="card-title">run_softmax</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Numerically stable formula</div>
+      <pre>shifted  = x - x.max(dim, keepdim=True)   ← subtract max first
+exp_x    = exp(shifted)
+softmax  = exp_x / exp_x.sum(dim, keepdim=True)
+
+Why subtract max? exp(1000) overflows to inf → NaN.
+Subtracting max doesn't change the result (softmax is shift-invariant).</pre>
+    </div>
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_nn_utils.py)</div>
+      <pre>python -m pytest tests\test_nn_utils.py::test_softmax_matches_pytorch -v
+<span class="cm"># Also tests with x+100 to verify numerical stability</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Attention -->
+<div id="attn" class="card">
+  <div class="card-head">
+    <div class="card-num">8</div>
+    <div class="card-title">run_scaled_dot_product_attention</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Formula</div>
+      <pre>scores = Q @ Kᵀ / √d_k           ← (batch, ..., seq_q, seq_k)
+if mask is not None:
+    scores[mask == True] = -inf   ← masked positions get 0 probability
+weights = softmax(scores, dim=-1)
+if pdrop:
+    weights = dropout(weights)
+output = weights @ V              ← (batch, ..., seq_q, d_v)</pre>
+    </div>
+
+    <div class="box box-helper">
+      <div class="box-label">Use your run_softmax here</div>
+      <pre>weights = run_softmax(scores, dim=-1)
+<span class="cm"># Then apply nn.Dropout(pdrop)(weights) if pdrop is not None</span></pre>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Tests  (test_model.py)</div>
+      <pre><span class="cm"># 3D case: (seq_len, d_k) — single batch item</span>
+python -m pytest tests\test_model.py::test_scaled_dot_product_attention -v
+
+<span class="cm"># 4D case: (batch, num_heads, seq_len, d_k) — full batched multi-head</span>
+python -m pytest tests\test_model.py::test_4d_scaled_dot_product_attention -v</pre>
+    </div>
+  </div>
+</div>
+
+<!-- Multi-head attn -->
+<div id="mha" class="card">
+  <div class="card-head">
+    <div class="card-num">9</div>
+    <div class="card-title">run_multihead_self_attention</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <p>Takes per-head weight matrices (old format) and runs efficient batched multi-head attention.</p>
+
+    <div class="box box-formula">
+      <div class="box-label">What the test passes in (weights dict keys)</div>
+      <pre>'q_heads.0.weight', 'q_heads.1.weight', ...  shape (d_k, d_model) each
+'k_heads.0.weight', 'k_heads.1.weight', ...
+'v_heads.0.weight', 'v_heads.1.weight', ...
+'output_proj.weight'                           shape (d_model, d_v * num_heads)</pre>
+    </div>
+
+    <div class="box box-code">
+      <div class="box-label">Efficient implementation pattern</div>
+      <pre><span class="cm"># 1. Stack per-head weights into one big matrix</span>
+W_Q = torch.cat([weights[<span class="st">f'q_heads.{i}.weight'</span>] <span class="kw">for</span> i <span class="kw">in</span> range(num_heads)], dim=0)
+<span class="cm"># W_Q shape: (num_heads * d_k, d_model)</span>
+
+<span class="cm"># 2. One matmul for all heads at once</span>
+Q = in_features @ W_Q.T   <span class="cm"># (B, T, num_heads*d_k)</span>
+
+<span class="cm"># 3. Reshape to separate heads</span>
+Q = Q.reshape(B, T, num_heads, d_k).permute(0, 2, 1, 3)
+<span class="cm"># Q shape: (B, num_heads, T, d_k)</span>
+
+<span class="cm"># 4. Build causal mask and call your attention</span>
+mask = torch.triu(torch.ones(T, T, dtype=torch.bool), diagonal=1)
+out = run_scaled_dot_product_attention(K, Q, V, mask=mask, pdrop=attn_pdrop)
+
+<span class="cm"># 5. Reassemble and project</span>
+out = out.permute(0, 2, 1, 3).reshape(B, T, d_model)
+out = out @ weights[<span class="st">'output_proj.weight'</span>].T</pre>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_model.py)</div>
+      <pre>python -m pytest tests\test_model.py::test_multihead_self_attention -v
+<span class="cm"># d_model=64, num_heads=2, attn_pdrop=0.0</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Transformer block -->
+<div id="block" class="card">
+  <div class="card-head">
+    <div class="card-num">10</div>
+    <div class="card-title">run_transformer_block</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Pre-norm block (call your own functions)</div>
+      <pre><span class="cm"># Sub-layer 1: attention</span>
+normed   = run_rmsnorm(d_model, eps=1e-5, weights={'weight': weights['ln1.weight']}, in_features=x)
+mha_out  = run_multihead_self_attention(d_model, num_heads, attn_pdrop, mha_weights, normed)
+x        = x + dropout(mha_out)
+
+<span class="cm"># Sub-layer 2: feed-forward</span>
+normed   = run_rmsnorm(d_model, eps=1e-5, weights={'weight': weights['ln2.weight']}, in_features=x)
+ffn_out  = run_positionwise_feedforward(d_model, d_ff, ffn_weights, normed)
+x        = x + dropout(ffn_out)</pre>
+    </div>
+
+    <div class="box box-formula" style="margin-top:10px;">
+      <div class="box-label">Weights dict keys</div>
+      <pre>'attn.q_proj.weight'  (num_heads*d_k, d_model) ← already concatenated
+'attn.k_proj.weight'
+'attn.v_proj.weight'
+'attn.output_proj.weight'
+'ln1.weight', 'ln2.weight'   (d_model,)
+'ffn.w1.weight', 'ffn.w2.weight'</pre>
+    </div>
+
+    <div class="box box-warn">
+      <div class="box-label">⚠ Weight format difference</div>
+      <p style="margin:0;font-size:13px;">The block gives you <em>concatenated</em> Q/K/V projections (<code>attn.q_proj.weight</code>). But <code>run_multihead_self_attention</code> expects per-head weights (<code>q_heads.0.weight</code>). You need to split them with <code>torch.chunk(weight, num_heads, dim=0)</code> before calling it.</p>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_model.py)</div>
+      <pre>python -m pytest tests\test_model.py::test_transformer_block -v</pre>
+    </div>
+  </div>
+</div>
+
+<!-- Full LM -->
+<div id="lm" class="card">
+  <div class="card-head">
+    <div class="card-num">11</div>
+    <div class="card-title">run_transformer_lm</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Full forward pass (call your own functions)</div>
+      <pre>token_emb = weights['token_embeddings.weight'][in_indices]   <span class="cm"># (B, T, d_model)</span>
+pos_emb   = weights['position_embeddings.weight'][:T]         <span class="cm"># (T, d_model)</span>
+x         = dropout(token_emb + pos_emb)
+
+<span class="kw">for</span> i in range(num_layers):
+    x = run_transformer_block(d_model, num_heads, d_ff, ..., layer_weights_i, x)
+
+x = run_rmsnorm(d_model, 1e-5, {'weight': weights['ln_final.weight']}, x)
+logits = x @ weights['lm_head.weight'].T    <span class="cm"># (B, T, vocab_size) — no softmax!</span>
+<span class="cm"># lm_head.weight is tied to token_embeddings.weight (same tensor)</span></pre>
+    </div>
+
+    <div class="box box-formula" style="margin-top:10px;">
+      <div class="box-label">Per-layer weight keys (i = layer index)</div>
+      <pre>'layers.{i}.attn.q_proj.weight'
+'layers.{i}.attn.k_proj.weight'
+'layers.{i}.attn.v_proj.weight'
+'layers.{i}.attn.output_proj.weight'
+'layers.{i}.ln1.weight', 'layers.{i}.ln2.weight'
+'layers.{i}.ffn.w1.weight', 'layers.{i}.ffn.w2.weight'</pre>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Tests  (test_model.py)</div>
+      <pre><span class="cm"># Full sequence</span>
+python -m pytest tests\test_model.py::test_transformer_lm -v
+
+<span class="cm"># Sequence shorter than context_length</span>
+python -m pytest tests\test_model.py::test_transformer_lm_truncated_input -v
+
+<span class="cm"># All model tests at once</span>
+python -m pytest tests\test_model.py -v</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ §4 TRAINING ════════════════════════════════ -->
+<h2 class="section"><span class="section-badge badge-implement">§4</span> Training Components</h2>
+
+<!-- Cross entropy -->
+<div id="ce" class="card">
+  <div class="card-head">
+    <div class="card-num">12</div>
+    <div class="card-title">run_cross_entropy</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Numerically stable formula</div>
+      <pre>shifted  = logits - logits.max(dim=-1, keepdim=True)   ← subtract max
+log_sum  = log(exp(shifted).sum(dim=-1))
+loss_i   = -shifted[correct_class] + log_sum            ← per example
+return loss_i.mean()</pre>
+    </div>
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_nn_utils.py)</div>
+      <pre>python -m pytest tests\test_nn_utils.py::test_cross_entropy -v
+<span class="cm"># Also tests with 1000× inputs to check numerical stability</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- AdamW -->
+<div id="adamw" class="card">
+  <div class="card-head">
+    <div class="card-num">13</div>
+    <div class="card-title">AdamW optimizer</div>
+    <span class="card-file">adapters.py → get_adamw_cls()</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Update rule (per-parameter, t starts at 1)</div>
+      <pre>m  = β₁·m + (1−β₁)·g
+v  = β₂·v + (1−β₂)·g²
+αt = lr × √(1−β₂ᵗ) / (1−β₁ᵗ)       ← bias correction
+θ -= αt × m / (√v + ε)               ← gradient update
+θ -= lr × weight_decay × θ           ← weight decay (decoupled)</pre>
+    </div>
+
+    <div class="box box-code">
+      <div class="box-label">Skeleton (subclass torch.optim.Optimizer)</div>
+      <pre><span class="kw">class</span> <span class="fn">AdamW</span>(torch.optim.Optimizer):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, params, lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0):
+        super().__init__(params, dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay))
+
+    <span class="kw">def</span> <span class="fn">step</span>(self, closure=None):
+        <span class="kw">for</span> group <span class="kw">in</span> self.param_groups:
+            <span class="kw">for</span> p <span class="kw">in</span> group[<span class="st">'params'</span>]:
+                <span class="kw">if</span> p.grad <span class="kw">is</span> None: <span class="kw">continue</span>
+                state = self.state[p]           <span class="cm"># per-param dict (persists across steps)</span>
+                t = state.get(<span class="st">'step'</span>, 0) + 1
+                <span class="cm"># ... update m, v, apply update rule ...</span>
+                state[<span class="st">'step'</span>] = t
+
+<span class="kw">def</span> <span class="fn">get_adamw_cls</span>():
+    <span class="kw">return</span> AdamW</pre>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Tests  (test_optimizer.py + test_serialization.py)</div>
+      <pre>python -m pytest tests\test_optimizer.py::test_adamw -v
+<span class="cm"># Runs 1000 gradient steps, checks final weights match reference or PyTorch AdamW</span>
+
+<span class="cm"># Checkpointing test ALSO requires AdamW to work</span>
+python -m pytest tests\test_serialization.py -v</pre>
+    </div>
+  </div>
+</div>
+
+<!-- LR schedule -->
+<div id="lr" class="card">
+  <div class="card-head">
+    <div class="card-num">14</div>
+    <div class="card-title">run_get_lr_cosine_schedule</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Three phases</div>
+      <pre><span class="cm"># Warmup (it &lt; warmup_iters):</span>
+  lr = (it / warmup_iters) × max_lr
+
+<span class="cm"># Cosine decay (warmup_iters ≤ it ≤ cosine_cycle_iters):</span>
+  progress = (it − warmup_iters) / (cosine_cycle_iters − warmup_iters)
+  lr = min_lr + 0.5 × (1 + cos(π × progress)) × (max_lr − min_lr)
+
+<span class="cm"># After cosine (it &gt; cosine_cycle_iters):</span>
+  lr = min_lr</pre>
+    </div>
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_optimizer.py)</div>
+      <pre>python -m pytest tests\test_optimizer.py::test_get_lr_cosine_schedule -v
+<span class="cm"># Checks 25 specific iterations against hardcoded expected values</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Gradient clipping -->
+<div id="clip" class="card">
+  <div class="card-head">
+    <div class="card-num">15</div>
+    <div class="card-title">run_gradient_clipping</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-formula">
+      <div class="box-label">Algorithm</div>
+      <pre><span class="cm"># 1. Collect all params that HAVE a gradient (skip p.grad is None)</span>
+<span class="cm"># 2. Compute global L2 norm across ALL gradients combined</span>
+total_norm = sqrt( sum( p.grad.norm()² for p with grad ) )
+
+<span class="cm"># 3. If total_norm > max_l2_norm, scale ALL gradients by the same factor</span>
+clip_coef = max_l2_norm / (total_norm + 1e-6)
+<span class="kw">if</span> total_norm &gt; max_l2_norm:
+    p.grad *= clip_coef   <span class="cm"># in-place for each p</span></pre>
+    </div>
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_nn_utils.py)</div>
+      <pre>python -m pytest tests\test_nn_utils.py::test_gradient_clipping -v
+<span class="cm"># Creates 6 random parameter tensors, one with requires_grad=False (skip it)
+# Checks your output matches torch.nn.utils.clip_grad_norm_</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ §5 LOOP ════════════════════════════════ -->
+<h2 class="section"><span class="section-badge badge-implement">§5</span> Training Loop</h2>
+
+<!-- get_batch -->
+<div id="batch" class="card">
+  <div class="card-head">
+    <div class="card-num">16</div>
+    <div class="card-title">run_get_batch</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <p>The dataset is a single 1D numpy array of token IDs. Sample <code>batch_size</code> random chunks of length <code>context_length</code>. The targets are identical but shifted right by 1.</p>
+
+    <div class="box box-code">
+      <div class="box-label">Pattern</div>
+      <pre>start_indices = np.random.randint(0, len(dataset) - context_length, size=batch_size)
+x = np.stack([dataset[i : i+context_length]   <span class="kw">for</span> i <span class="kw">in</span> start_indices])
+y = np.stack([dataset[i+1 : i+context_length+1] <span class="kw">for</span> i <span class="kw">in</span> start_indices])
+<span class="kw">return</span> torch.from_numpy(x).to(device), torch.from_numpy(y).to(device)</pre>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_data.py)</div>
+      <pre>python -m pytest tests\test_data.py::test_get_batch -v
+<span class="cm"># Checks shapes, that y == x+1, uniform sampling, and that invalid
+# device ('cuda:99') raises an error</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Checkpointing -->
+<div id="ckpt" class="card">
+  <div class="card-head">
+    <div class="card-num">17</div>
+    <div class="card-title">run_save_checkpoint / run_load_checkpoint</div>
+    <span class="card-file">adapters.py</span>
+    <span class="status status-todo">■ implement</span>
+  </div>
+  <div class="card-body">
+    <div class="box box-code">
+      <div class="box-label">Pattern</div>
+      <pre><span class="cm"># Save</span>
+torch.save({
+    <span class="st">'model'</span>: model.state_dict(),
+    <span class="st">'optimizer'</span>: optimizer.state_dict(),
+    <span class="st">'iteration'</span>: iteration,
+}, out)
+
+<span class="cm"># Load</span>
+ckpt = torch.load(src)
+model.load_state_dict(ckpt[<span class="st">'model'</span>])
+optimizer.load_state_dict(ckpt[<span class="st">'optimizer'</span>])
+<span class="kw">return</span> ckpt[<span class="st">'iteration'</span>]</pre>
+    </div>
+
+    <div class="box box-test">
+      <div class="box-label">✓ Test  (test_serialization.py)</div>
+      <pre>python -m pytest tests\test_serialization.py::test_checkpointing -v
+<span class="cm"># Note: this test also requires AdamW (get_adamw_cls) to be implemented.
+# It saves a model+optimizer, loads into fresh objects, checks they match.</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ RUN ALL ════════════════ -->
+<div style="margin-top:48px; background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:18px 20px;">
+  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Run everything</div>
+  <pre>python -m pytest tests\ -v --tb=short
+
+<span class="cm"># Or run a single file</span>
+python -m pytest tests\test_model.py -v
+python -m pytest tests\test_nn_utils.py -v
+python -m pytest tests\test_optimizer.py -v
+python -m pytest tests\test_serialization.py -v
+python -m pytest tests\test_data.py -v
+python -m pytest tests\test_train_bpe.py -v
+python -m pytest tests\test_tokenizer.py -v</pre>
+</div>
+
+</main>
+</div>
+
+<script>
+  document.querySelectorAll('.sb-link').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const el = document.querySelector(a.getAttribute('href'));
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+</body>
+</html>

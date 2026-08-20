@@ -12,6 +12,7 @@ import torch.nn as nn
 import heapq
 from . import helper_functions, helper_classes
 
+
 def run_positionwise_feedforward(
     d_model: int,
     d_ff: int,
@@ -28,26 +29,16 @@ def run_positionwise_feedforward(
             Dimensionality of the feedforward network's inner layer.
         weights: dict[str, torch.FloatTensor]
             State dict of our reference implementation.
-            The keys of this dictionary are `w1.weight` and `w2.weight`.
-            `w1` is the first linear transformation, and `w2` is the second
-            linear transformation (eq. 2 of Vaswani et al., 2017).
-            `w1.weight` is of shape (d_ff, d_model).
-            `w2.weight` is of shape (d_model, d_ff).
-    )
+            Keys: 'w1.weight' shape (d_ff, d_model),
+                  'w2.weight' shape (d_model, d_ff).
         in_features: torch.FloatTensor
             Tensor to run your implementation on.
 
     Returns:
-        torch.FloatTensor with the output of running your position-wise feedforward network
-        with the provided `weights` on the provided `in_features`.
+        torch.FloatTensor with the same leading dims as in_features,
+        last dim = d_model.
     """
-    w1 = weights['w1.weight'] # Shape - (d_ff, d_model)
-    w2 = weights['w2.weight'] # Shape - (d_model, d_ff)
-
-    layer1 = in_features @ w1.T # (*, d_model) @ (d_model, d_ff) -> (*, d_ff)
-    gelu = run_gelu(layer1) # GeLU -> (*, d_ff)
-    layer2 = gelu @ w2.T # (*, d_ff) @ (d_ff, d_model) -> (*, d_model)
-    return layer2
+    raise NotImplementedError
 
 
 def run_scaled_dot_product_attention(
@@ -62,47 +53,21 @@ def run_scaled_dot_product_attention(
 
     Args:
         K: torch.FloatTensor
-            Tensor with attention keys. Shape is
-            (batch_size, ..., seq_len, key_dimension), where
-            "..." is optional and represents any number of other
-            batch dimensions (e.g., num_heads).
+            Shape (batch_size, ..., seq_len, key_dimension).
         Q: torch.FloatTensor
-            Tensor with attention queries. Shape is
-            (batch_size, ..., seq_len, key_dimension), where
-            "..." is optional and represents any number of other
-            batch dimensions (e.g., num_heads).
+            Shape (batch_size, ..., seq_len, key_dimension).
         V: torch.FloatTensor
-            Tensor with attention values. Shape is
-            (batch_size, ..., seq_len, value_dimension), where
-            "..." is optional and represents any number of other
-            batch dimensions (e.g., num_heads).
+            Shape (batch_size, ..., seq_len, value_dimension).
         mask: Optional[torch.BoolTensor]
-            An (optional) mask of shape (seq_len, seq_len).
-            Attention scores for positions with a mask value of `True` should
-            be masked out, i.e., not affect the softmaxed attention probabilities.
-        pdrop: Optional[float], default is None.
-            If given, drop-out the attention probabilities (the softmax-normalized
-            attention scores) with this rate.
+            Shape (seq_len, seq_len). Positions where mask=True are
+            filled with -inf before softmax (they are ignored).
+        pdrop: Optional[float]
+            If given, apply dropout to the post-softmax attention weights.
 
     Returns:
-        torch.FloatTensor of shape (batch_size, ..., seq_len, value_dimension)
-        with the output of running your scaled dot product attention
-        implementation with the provided key, query, and value tensors.
+        torch.FloatTensor of shape (batch_size, ..., seq_len, value_dimension).
     """
-    attention = Q @ K.transpose(-1, -2)
-    attention = attention / math.sqrt(Q.shape[-1])
-
-    if mask is not None:
-        attention = attention.masked_fill(mask, float('-inf'))
-    
-    attention = run_softmax(attention, dim=-1)
-
-    if pdrop is not None:
-        dropout = nn.Dropout(pdrop)
-        attention = dropout(attention)
-
-    attention = attention @ V
-    return attention
+    raise NotImplementedError
 
 
 def run_multihead_self_attention(
@@ -116,7 +81,6 @@ def run_multihead_self_attention(
     implementation of multi-head attention, return the output of an optimized batched
     implementation. This implementation should handle the key, query, and value projections
     for all heads in a single matrix multiply.
-    See section 3.2.2 of Vaswani et al., 2017.
 
     Args:
         d_model: int
@@ -124,58 +88,20 @@ def run_multihead_self_attention(
         num_heads: int
             Number of heads to use in multi-headed attention.
         attn_pdrop: float
-            Drop-out the attention probabilities (the softmax-normalized
-            attention scores) with this rate.
+            Drop-out the attention probabilities with this rate.
         weights: dict[str, torch.FloatTensor]
-            State dict of our reference implementation.
-            The keys of this dictionary are:
-            - `q_heads.{N}.weight`, `q_heads.{N}.weight`:
-                Weights for the query projection heads.
-                N is an integer from 0 to `num_heads - 1`.
-                Shape of each tensor is (d_key, d_model).
-            - `k_heads.{N}.weight`, `k_heads.{N}.weight`:
-                Weights for the key projection heads.
-                N is an integer from 0 to `num_heads - 1`.
-                Shape of each tensor is (d_key, d_model).
-            - `v_heads.{N}.weight`, `v_heads.{N}.weight`:
-                Weights for the value projection heads.
-                N is an integer from 0 to `num_heads - 1`.
-                Shape of each tensor is (d_value, d_model).
-            - `output_proj.weight`:
-                Weight of the output projection
-                (W^{O} in the original Transformer paper)
-                Shape of (d_model, d_value * num_heads).
+            Keys:
+            - 'q_heads.{N}.weight', 'k_heads.{N}.weight', 'v_heads.{N}.weight'
+              for N in 0..num_heads-1, each shape (d_key, d_model).
+            - 'output_proj.weight' shape (d_model, d_value * num_heads).
         in_features: torch.FloatTensor
-            Tensor to run your implementation on.
+            Shape (batch_size, seq_len, d_model).
 
     Returns:
-        torch.FloatTensor with the output of running your optimized, batched multi-headed attention
-        implementation with the given QKV projection weights and input features.
+        torch.FloatTensor shape (batch_size, seq_len, d_model).
     """
-    W_Q = torch.cat([weights[f'q_heads.{i}.weight'] for i in range(num_heads)], dim=0) # (d_k, d_model)
-    W_K = torch.cat([weights[f'k_heads.{i}.weight'] for i in range(num_heads)], dim=0) # (d_k, d_model)
-    W_V = torch.cat([weights[f'v_heads.{i}.weight'] for i in range(num_heads)], dim=0) # (d_v, d_model)
+    raise NotImplementedError
 
-    # in_features -> (B, T, d_model)
-    Q = in_features @ W_Q.T # (..., d_model) @ (d_model, d_k) -> (..., d_k)
-    K = in_features @ W_K.T # (..., d_model) @ (d_model, d_k) -> (..., d_k)
-    V = in_features @ W_V.T # (..., d_model) @ (d_model, d_v) -> (..., d_v)
-
-    B, T, D = Q.shape
-    d_k = d_v = D // num_heads
-    Q = Q.reshape(B, T, num_heads, d_k).permute(0, 2, 1, 3)
-    K = K.reshape(B, T, num_heads, d_k).permute(0, 2, 1, 3)
-    V = V.reshape(B, T, num_heads, d_v).permute(0, 2, 1, 3)
-
-    attn_mask = torch.triu(torch.ones(T, T, dtype=torch.bool, device=in_features.device), diagonal=1)
-
-    attention = run_scaled_dot_product_attention(K, Q, V, mask=attn_mask, pdrop=attn_pdrop)
-
-    attention = attention.permute(0, 2, 1, 3)
-    attention = attention.reshape(B, T, D)
-    attention = attention @ weights['output_proj.weight'].T
-
-    return attention # (B, T, D_model)
 
 def run_transformer_block(
     d_model: int,
@@ -189,100 +115,32 @@ def run_transformer_block(
     """Given the weights of a pre-norm Transformer block and input features,
     return the output of running the Transformer block on the input features.
 
+    Pre-norm block:
+        z = x + dropout(MultiHeadSelfAttention(RMSNorm(x)))
+        y = z + dropout(FFN(RMSNorm(z)))
+
     Args:
         d_model: int
-            The dimensionality of the Transformer block input.
         num_heads: int
-            Number of heads to use in multi-headed attention. `d_model` must be
-            evenly divisible by `num_heads`.
         d_ff: int
-            Dimensionality of the feed-forward inner layer (section 3.3).
-        attn_pdrop: float
-            Drop-out the attention probabilities (the softmax-normalized
-            attention scores) with this rate.
-        residual_pdrop: float
-            Apply dropout to the output of each sub-layer, before it
-            is added to the sub-layer input and normalized (section 5.4).
+        attn_pdrop: float  -- attention dropout rate
+        residual_pdrop: float  -- residual/sublayer dropout rate
         weights: dict[str, torch.FloatTensor]
-            State dict of our reference implementation.
-            The keys of this dictionary are:
-            - `attn.q_proj.weight`
-                The query projections for all `num_heads` attention heads.
-                Shape is (num_heads * (d_model / num_heads), d_model).
-                The rows are ordered by matrices of shape (num_heads, d_k),
-                so `attn.q_proj.weight == torch.cat([q_heads.0.weight, ..., q_heads.N.weight], dim=0)`.
-            - `attn.k_proj.weight`
-                The key projections for all `num_heads` attention heads.
-                Shape is (num_heads * (d_model / num_heads), d_model).
-                The rows are ordered by matrices of shape (num_heads, d_k),
-                so `attn.k_proj.weight == torch.cat([k_heads.0.weight, ..., k_heads.N.weight], dim=0)`.
-            - `attn.v_proj.weight`
-                The value projections for all `num_heads` attention heads.
-                Shape is (num_heads * (d_model / num_heads), d_model).
-                The rows are ordered by matrices of shape (num_heads, d_v),
-                so `attn.v_proj.weight == torch.cat([v_heads.0.weight, ..., v_heads.N.weight], dim=0)`.
-            - `attn.output_proj.weight`
-                Weight of the multi-head self-attention output projection
-                Shape is (d_model, (d_model / num_heads) * num_heads).
-            - `ln1.weight`
-                Weights of affine transform for the first RMSNorm
-                applied in the transformer block.
-                Shape is (d_model,).
-            - `ffn.w1.weight`
-                Weight of the first linear transformation in the FFN.
-                Shape is (d_ff, d_model).
-            - `ffn.w2.weight`
-                Weight of the second linear transformation in the FFN.
-                Shape is (d_model, d_ff).
-            - `ln2.weight`
-                Weights of affine transform for the second RMSNorm
-                applied in the transformer block.
-                Shape is (d_model,).
+            Keys:
+            - 'attn.q_proj.weight', 'attn.k_proj.weight', 'attn.v_proj.weight'
+              each shape (num_heads * d_k, d_model)
+            - 'attn.output_proj.weight' shape (d_model, d_model)
+            - 'ln1.weight', 'ln2.weight' each shape (d_model,)
+            - 'ffn.w1.weight' shape (d_ff, d_model)
+            - 'ffn.w2.weight' shape (d_model, d_ff)
         in_features: torch.FloatTensor
-            Tensor to run your implementation on.
-            Shape is (batch_size, sequence_length, d_model).
+            Shape (batch_size, sequence_length, d_model).
 
     Returns:
-        FloatTensor of shape (batch_size, sequence_length, d_model) with the output of
-        running the Transformer block on the input features.
+        FloatTensor of shape (batch_size, sequence_length, d_model).
     """
-    rms1_weights = {'weight': weights['ln1.weight']}
-    rms2_weights = {'weight': weights['ln2.weight']}
+    raise NotImplementedError
 
-    ffn_weight : dict[str, torch.FloatTensor] = {}
-    ffn_weight['w1.weight'] = weights['ffn.w1.weight']
-    ffn_weight['w2.weight'] = weights['ffn.w2.weight']
-
-    mha_weights: dict[str, torch.FloatTensor] = {}
-
-    production_q_weight = weights['attn.q_proj.weight']
-    production_k_weight = weights['attn.k_proj.weight']
-    production_v_weight = weights['attn.v_proj.weight']
-
-    # Just reverse of torch.cat
-    q_heads_list = torch.chunk(production_q_weight, chunks=num_heads, dim=0)
-    k_heads_list = torch.chunk(production_k_weight, chunks=num_heads, dim=0)
-    v_heads_list = torch.chunk(production_v_weight, chunks=num_heads, dim=0)
-
-    for i in range(num_heads):
-        mha_weights[f'q_heads.{i}.weight'] = q_heads_list[i]
-        mha_weights[f'k_heads.{i}.weight'] = k_heads_list[i]
-        mha_weights[f'v_heads.{i}.weight'] = v_heads_list[i]
-    
-    mha_weights['output_proj.weight'] = weights['attn.output_proj.weight']
-    epsilon = 1e-5
-    dropout = nn.Dropout(residual_pdrop)
-
-    # First Sub-Layer
-    RMSNorm1 = run_rmsnorm(d_model=d_model, in_features=in_features, weights=rms1_weights, eps=epsilon)
-    MHA = run_multihead_self_attention(d_model=d_model, num_heads=num_heads, attn_pdrop=attn_pdrop, weights=mha_weights, in_features=RMSNorm1)
-    y = in_features + dropout(MHA)
-    
-    # Second Sub-Layer
-    RMSNorm2 = run_rmsnorm(d_model=d_model, in_features=y, weights=rms2_weights, eps=epsilon)
-    FFN = run_positionwise_feedforward(d_model=d_model, d_ff=d_ff, weights=ffn_weight, in_features=RMSNorm2)
-    output = y + dropout(FFN)
-    return output
 
 def run_transformer_lm(
     vocab_size: int,
@@ -299,135 +157,34 @@ def run_transformer_lm(
     """Given the weights of a Transformer language model and input indices,
     return the output of running a forward pass on the input indices.
 
+    Architecture:
+        1. token_embeddings + position_embeddings -> dropout
+        2. num_layers x Transformer block (pre-norm)
+        3. Final RMSNorm
+        4. Linear projection to vocab_size (weight-tied with token_embeddings)
+        -> Returns raw logits (no softmax)
+
     Args:
-        vocab_size: int
-            The number of unique items in the output vocabulary to be predicted.
-        context_length: int,
-            The maximum number of tokens to process at once.
-        d_model: int
-            The dimensionality of the model embeddings and sublayer outputs.
-        num_layers: int
-            The number of Transformer layers to use.
-        num_heads: int
-            Number of heads to use in multi-headed attention. `d_model` must be
-            evenly divisible by `num_heads`.
-        d_ff: int
-            Dimensionality of the feed-forward inner layer (section 3.3).
-        attn_pdrop: float
-            Drop-out the attention probabilities (the softmax-normalized
-            attention scores) with this rate.
-        residual_pdrop: float
-            Apply dropout to the sum of the token and position embeddings
-            as well as the output of each sub-layer, before it is added to the
-            sub-layer input and normalized (section 5.4).
+        vocab_size, context_length, d_model, num_layers, num_heads, d_ff: int
+        attn_pdrop, residual_pdrop: float
         weights: dict[str, torch.FloatTensor]
-            State dict of our reference implementation. {num_layers} refers to an
-            integer between `0` and `num_layers - 1` (the layer index).
-            The keys of this dictionary are:
-            - `token_embeddings.weight`
-                Token embedding matrix. Shape is (vocab_size, d_model).
-            - `position_embeddings.weight`
-                Positional embedding matrix. Shape is (context_length, d_model).
-            - `layers.{num_layers}.attn.q_proj.weight`
-                The query projections for all `num_heads` attention heads.
-                Shape is (num_heads * (d_model / num_heads), d_model).
-                The rows are ordered by matrices of shape (num_heads, d_k),
-                so `attn.q_proj.weight == torch.cat([q_heads.0.weight, ..., q_heads.N.weight], dim=0)`.
-            - `layers.{num_layers}.attn.k_proj.weight`
-                The key projections for all `num_heads` attention heads.
-                Shape is (num_heads * (d_model / num_heads), d_model).
-                The rows are ordered by matrices of shape (num_heads, d_k),
-                so `attn.k_proj.weight == torch.cat([k_heads.0.weight, ..., k_heads.N.weight], dim=0)`.
-            - `layers.{num_layers}.attn.v_proj.weight`
-                The value projections for all `num_heads` attention heads.
-                Shape is (num_heads * (d_model / num_heads), d_model).
-                The rows are ordered by matrices of shape (num_heads, d_v),
-                so `attn.v_proj.weight == torch.cat([v_heads.0.weight, ..., v_heads.N.weight], dim=0)`.
-            - `layers.{num_layers}.attn.output_proj.weight`
-                Weight of the multi-head self-attention output projection
-                Shape is ((d_model / num_heads) * num_heads, d_model).
-            - `layers.{num_layers}.ln1.weight`
-                Weights of affine transform for the first RMSNorm
-                applied in the transformer block.
-                Shape is (d_model,).
-            - `layers.{num_layers}.ffn.w1.weight`
-                Weight of the first linear transformation in the FFN.
-                Shape is (d_ff, d_model).
-            - `layers.{num_layers}.ffn.w2.weight`
-                Weight of the second linear transformation in the FFN.
-                Shape is (d_model, d_ff).
-            - `layers.{num_layers}.ln2.weight`
-                Weights of affine transform for the second RMSNorm
-                applied in the transformer block.
-                Shape is (d_model,).
-            - `ln_final.weight`
-                Weights of affine transform for RMSNorm applied to the output of the final transformer block.
-                Shape is (d_model, ).
-            - `lm_head.weight`
-                Weights of the language model output embedding.
-                Shape is (vocab_size, d_model).
+            Keys:
+            - 'token_embeddings.weight'   shape (vocab_size, d_model)
+            - 'position_embeddings.weight' shape (context_length, d_model)
+            - 'layers.{i}.attn.q_proj.weight', 'layers.{i}.attn.k_proj.weight',
+              'layers.{i}.attn.v_proj.weight', 'layers.{i}.attn.output_proj.weight'
+            - 'layers.{i}.ln1.weight', 'layers.{i}.ln2.weight'
+            - 'layers.{i}.ffn.w1.weight', 'layers.{i}.ffn.w2.weight'
+            - 'ln_final.weight'
+            - 'lm_head.weight'  (tied to token_embeddings.weight)
         in_indices: torch.LongTensor
-            Tensor with input indices to run the language model on. Shape is (batch_size, sequence_length), where
-            `sequence_length` is at most `context_length`.
+            Shape (batch_size, sequence_length), sequence_length <= context_length.
 
     Returns:
-        FloatTensor of shape (batch size, sequence_length, vocab_size) with the predicted unnormalized
-        next-word distribution for each token.
+        FloatTensor of shape (batch_size, sequence_length, vocab_size).
     """
-    dropout = nn.Dropout(residual_pdrop)
+    raise NotImplementedError
 
-    # Token Embedding
-    token_embedding_weights = weights['token_embeddings.weight']
-    embedded_tokens = token_embedding_weights[in_indices]
-
-    # Positional Embedding
-    T = in_indices.shape[1]
-    position_embedding_weight = weights['position_embeddings.weight']
-    positions = torch.arange(T, device=in_indices.device) # Create tensor of position [1, 2, ..., T-1]
-    position_embedding = position_embedding_weight[positions]
-
-    # Add both embeddings
-    x = embedded_tokens + position_embedding
-
-    # Dropout
-    x = dropout(x)
-
-    # Layer Transformer Block
-    for i in range(num_layers):
-
-        transformer_weight = {}
-        transformer_weight['attn.k_proj.weight'] = weights[f'layers.{i}.attn.k_proj.weight']
-        transformer_weight['attn.q_proj.weight'] = weights[f'layers.{i}.attn.q_proj.weight']
-        transformer_weight['attn.v_proj.weight'] = weights[f'layers.{i}.attn.v_proj.weight']
-        transformer_weight['attn.output_proj.weight'] = weights[f'layers.{i}.attn.output_proj.weight']
-        transformer_weight['ln1.weight'] = weights[f'layers.{i}.ln1.weight']
-        transformer_weight['ln2.weight'] = weights[f'layers.{i}.ln2.weight']
-        transformer_weight['ffn.w1.weight'] = weights[f'layers.{i}.ffn.w1.weight']
-        transformer_weight['ffn.w2.weight'] = weights[f'layers.{i}.ffn.w2.weight']
-        
-        x = run_transformer_block(
-            d_model=d_model, 
-            d_ff=d_ff, 
-            attn_pdrop=attn_pdrop, 
-            residual_pdrop=residual_pdrop, 
-            num_heads=num_heads, 
-            weights=transformer_weight, 
-            in_features=x)
-    
-    # Final Norm
-    x = run_rmsnorm(
-        d_model=d_model, 
-        eps=1e-5, 
-        weights={'weight': weights['ln_final.weight']}, 
-        in_features=x)
-    
-    # Linear (Output Embedding)
-    output_embedding_weight = weights['lm_head.weight']
-    x = x @ output_embedding_weight.T
-
-    # Return predicted unnormalized next-word distribution (therefore no softmax)
-    return x
-    
 
 def run_rmsnorm(
     d_model: int,
@@ -438,51 +195,40 @@ def run_rmsnorm(
     """Given the weights of a RMSNorm affine transform,
     return the output of running RMSNorm on the input features.
 
+    RMSNorm(a_i) = (a_i / RMS(a)) * g_i
+    where RMS(a) = sqrt(mean(a^2) + eps)
+
     Args:
         d_model: int
-            The dimensionality of the RMSNorm input.
-        eps: float, default is 1e-5
-            A value added to the denominator for numerical stability.
-        weights: dict[str, torch.FloatTensor]
-            State dict of our reference implementation.
-            The keys of this dictionary are:
-            - `weight`
-                Weights of the RMSNorm affine transform.
-                Shape is (d_model,).
-        in_features: torch.FloatTensor
-            Input features to run RMSNorm on. Tensor of (*, d_model), where *
-            can be an arbitrary number of dimensions with arbitrary values.
+        eps: float  -- small value for numerical stability (typically 1e-5)
+        weights: dict with key 'weight', shape (d_model,)
+        in_features: torch.FloatTensor  -- shape (*, d_model)
 
     Returns:
-        FloatTensor of with the same shape as `in_features` with the output of running
-        RMSNorm of the `in_features`.
+        FloatTensor of same shape as in_features.
     """
-    norm_layer = helper_classes.RMSNorm(d_model=d_model, eps=eps, weights=weights)
-    with torch.no_grad():
-        return norm_layer(in_features)
+    raise NotImplementedError
 
 
 def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
     """Given a tensor of inputs, return the output of applying GELU
     to each element.
 
+    GELU(x) = x * 0.5 * (1 + erf(x / sqrt(2)))
+
     Args:
-        in_features: torch.FloatTensor
-            Input features to run GELU on. Shape is arbitrary.
+        in_features: torch.FloatTensor -- arbitrary shape
 
     Returns:
-        FloatTensor of with the same shape as `in_features` with the output of applying
-        GELU to each element.
+        FloatTensor of same shape as in_features.
     """
-    output = in_features * 0.5 * (1.0 + torch.erf(in_features/math.sqrt(2)))
-    return output
+    raise NotImplementedError
 
 
 def run_get_batch(
     dataset: npt.NDArray, batch_size: int, context_length: int, device: str
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Given a dataset (a 1D numpy array of integers) and a desired batch size and
+    """Given a dataset (a 1D numpy array of integers) and a desired batch size and
     context length, sample language modeling input sequences and their corresponding
     labels from the dataset.
 
@@ -494,13 +240,12 @@ def run_get_batch(
         context_length: int
             Desired context length of each sampled example.
         device: str
-            PyTorch device string (e.g., 'cpu' or 'cuda:0') indicating the device
-            to place the sampled input sequences and labels on.
+            PyTorch device string (e.g., 'cpu' or 'cuda:0').
 
     Returns:
-        Tuple of torch.LongTensors of shape (batch_size, context_length). The first tuple item
-        is the sampled input sequences, and the second tuple item is the corresponding
-        language modeling labels.
+        Tuple of torch.LongTensors of shape (batch_size, context_length).
+        First item: sampled input sequences.
+        Second item: corresponding language modeling labels (inputs shifted right by 1).
     """
     raise NotImplementedError
 
@@ -509,61 +254,67 @@ def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:
     """Given a tensor of inputs, return the output of softmaxing the given `dim`
     of the input.
 
+    Must be numerically stable: subtract max before computing exp.
+
     Args:
-        in_features: torch.FloatTensor
-            Input features to softmax. Shape is arbitrary.
-        dim: int
-            Dimension of the `in_features` to apply softmax to.
+        in_features: torch.FloatTensor -- arbitrary shape
+        dim: int -- dimension to apply softmax over
 
     Returns:
-        FloatTensor of with the same shape as `in_features` with the output of
-        softmax normalizing the specified `dim`.
+        FloatTensor of same shape as in_features.
     """
-    max_vals = in_features.max(dim=dim, keepdim=True).values
-    shifted = in_features - max_vals
-    exp_x = torch.exp(shifted)
-    sum_exp = torch.sum(exp_x, dim=dim, keepdim=True)
+    raise NotImplementedError
 
-    return exp_x / sum_exp
 
 def run_cross_entropy(inputs: torch.FloatTensor, targets: torch.LongTensor):
     """Given a tensor of inputs and targets, compute the average cross-entropy
     loss across examples.
 
+    Must be numerically stable: subtract max from logits before computing exp.
+
     Args:
         inputs: torch.FloatTensor
-            FloatTensor of shape (batch_size, num_classes). inputs[i][j] is the
-            unnormalized logit of jth class for the ith example.
+            Shape (batch_size, num_classes) -- raw unnormalized logits.
         targets: torch.LongTensor
-            LongTensor of shape (batch_size, ) with the index of the correct class.
-            Each value must be between 0 and `num_classes - 1`.
+            Shape (batch_size,) -- index of the correct class for each example.
 
     Returns:
-        Tensor of shape () with the average cross-entropy loss across examples.
+        Scalar tensor: mean cross-entropy loss across the batch.
     """
-    max_val = inputs.max(dim=-1, keepdim=True).values
-    shifted = inputs - max_val
-    
+    raise NotImplementedError
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float):
-    """Given a set of parameters, clip their combined gradients to have l2 norm at most max_l2_norm.
+    """Given a set of parameters, clip their combined gradients to have l2 norm
+    at most max_l2_norm.
+
+    Compute the global L2 norm across ALL parameters' gradients combined.
+    If it exceeds max_l2_norm, scale all gradients down by the same factor.
+    Use eps=1e-6 for numerical stability.
 
     Args:
         parameters: collection of trainable parameters.
-        max_l2_norm: a positive value containing the maximum l2-norm.
+        max_l2_norm: a positive value -- the maximum allowed L2 norm.
 
-    The gradients of the parameters (parameter.grad) should be modified in-place.
-
-    Returns:
-        None
+    Modifies gradients in-place. Returns None.
     """
     raise NotImplementedError
 
 
 def get_adamw_cls() -> Type[torch.optim.Optimizer]:
-    """
-    Returns a torch.optim.Optimizer that implements AdamW.
+    """Return a torch.optim.Optimizer subclass that implements AdamW.
+
+    Your AdamW class __init__ should accept:
+        params, lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0
+
+    AdamW update rule (t starts at 1):
+        m = beta1*m + (1-beta1)*g
+        v = beta2*v + (1-beta2)*g^2
+        alpha_t = lr * sqrt(1-beta2^t) / (1-beta1^t)
+        theta -= alpha_t * m / (sqrt(v) + eps)   # gradient update
+        theta -= lr * weight_decay * theta         # weight decay (decoupled)
+
+    Store per-parameter state (m, v, step) in self.state[p].
     """
     raise NotImplementedError
 
@@ -575,28 +326,27 @@ def run_get_lr_cosine_schedule(
     warmup_iters: int,
     cosine_cycle_iters: int,
 ):
-    """
-    Given the parameters of a cosine learning rate decay schedule (with linear
-    warmup) and an iteration number, return the learning rate at the given
-    iteration under the specified schedule.
+    """Given the parameters of a cosine learning rate decay schedule (with linear
+    warmup) and an iteration number, return the learning rate at that iteration.
+
+    Schedule:
+        if it < warmup_iters:
+            lr = (it / warmup_iters) * max_learning_rate
+        elif it <= cosine_cycle_iters:
+            lr = min_learning_rate + 0.5*(1 + cos(pi*(it-warmup_iters)/(cosine_cycle_iters-warmup_iters)))
+                 * (max_learning_rate - min_learning_rate)
+        else:
+            lr = min_learning_rate
 
     Args:
-        it: int
-            Iteration number to get learning rate for.
-        max_learning_rate: float
-            alpha_max, the maximum learning rate for
-            cosine learning rate schedule (with warmup).
-        min_learning_rate: float
-            alpha_min, the minimum / final learning rate for
-            the cosine learning rate schedule (with warmup).
-        warmup_iters: int
-            T_w, the number of iterations to linearly warm-up
-            the learning rate.
-        cosine_cycle_iters: int
-            T_c, the number of cosine annealing iterations.
+        it: int -- current iteration number
+        max_learning_rate: float -- peak learning rate
+        min_learning_rate: float -- minimum / final learning rate
+        warmup_iters: int -- number of linear warmup steps
+        cosine_cycle_iters: int -- total number of cosine annealing steps
 
     Returns:
-        Learning rate at the given iteration under the specified schedule.
+        float: learning rate at iteration `it`.
     """
     raise NotImplementedError
 
@@ -607,19 +357,18 @@ def run_save_checkpoint(
     iteration: int,
     out: str | os.PathLike | BinaryIO | IO[bytes],
 ):
-    """
-    Given a model, optimizer, and an iteration number, serialize them to disk.
+    """Serialize model weights, optimizer state, and iteration number to disk.
+
+    Use torch.save() with a dict containing all three. Example structure:
+        {'model': model.state_dict(),
+         'optimizer': optimizer.state_dict(),
+         'iteration': iteration}
 
     Args:
         model: torch.nn.Module
-            Serialize the state of this model.
-        optimizer: torch.optim.Optimizer,
-            Serialize the state of this optimizer.
-        iteration: int
-            Serialize this value, which represents the number of training iterations
-            we've completed.
-        out: str | os.PathLike | BinaryIO | IO[bytes]
-            Path or file-like object to serialize the model, optimizer, and iteration to.
+        optimizer: torch.optim.Optimizer
+        iteration: int -- number of training iterations completed so far
+        out: file path or file-like object to write to
     """
     raise NotImplementedError
 
@@ -629,23 +378,18 @@ def run_load_checkpoint(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
 ):
-    """
-    Given a serialized checkpoint (path or file-like object), restore the
-    serialized state to the given model and optimizer.
-    Return the number of iterations that we previously serialized in
-    the checkpoint.
+    """Restore model and optimizer state from a checkpoint file.
 
     Args:
-        src: str | os.PathLike | BinaryIO | IO[bytes]
-            Path or file-like object to serialized checkpoint.
-        model: torch.nn.Module
-            Restore the state of this model.
-        optimizer: torch.optim.Optimizer,
-            Restore the state of this optimizer.
+        src: file path or file-like object to read from
+        model: torch.nn.Module -- restore state into this model
+        optimizer: torch.optim.Optimizer -- restore state into this optimizer
+
     Returns:
-        int, the previously-serialized number of iterations.
+        int -- the iteration number that was saved in the checkpoint.
     """
     raise NotImplementedError
+
 
 def get_tokenizer(
     vocab: dict[int, bytes],
@@ -656,131 +400,47 @@ def get_tokenizer(
     return a BPE tokenizer that uses the provided vocab, merges, and special tokens.
 
     Args:
-        vocab: dict[int, bytes]
-            The tokenizer vocabulary, a mapping from int (token ID in the vocabulary)
-            to bytes (token bytes)
-        merges: list[tuple[bytes, bytes]]
-            BPE merges. Each list item is a tuple of bytes (<token1>, <token2>),
-            representing that <token1> was merged with <token2>.
-            Merges are ordered by order of creation.
-        special_tokens: Optional[list[str]]
-            A list of string special tokens for the tokenizer. These strings will never
-            be split into multiple tokens, and will always be kept as a single token.
+        vocab: dict[int, bytes] -- token ID -> bytes
+        merges: list[tuple[bytes, bytes]] -- BPE merges in creation order
+        special_tokens: Optional[list[str]] -- special tokens (never split by BPE)
 
     Returns:
-        A BPE tokenizer that uses the provided vocab, merges, and special tokens.
-    """  
+        A Tokenizer instance (your implementation in helper_classes.py).
+    """
     return helper_classes.Tokenizer(vocab=vocab, merges=merges, special_tokens=special_tokens)
 
-# Train BPE
+
 def run_train_bpe(
     input_path: str | os.PathLike,
     vocab_size: int,
     special_tokens: list[str],
 ):
-    with open(input_path, "r", encoding="utf-8") as f:
-        text = f.read()
+    """Train a byte-level BPE tokenizer on the text file at input_path.
 
-    pretokens = helper_functions.pre_tokenizer_train(text, special_tokens)
+    Algorithm:
+        1. Initialize vocab with all 256 byte values (ids 0-255) + special tokens.
+        2. Pre-tokenize the corpus using the GPT-2 regex pattern.
+        3. Count the frequency of every adjacent byte pair across all pre-tokens.
+        4. Repeatedly:
+            a. Find the most frequent pair. Break ties by taking the
+               lexicographically GREATER pair.
+            b. Merge all occurrences of that pair into a new token.
+            c. Add the new token to the vocab.
+            d. Record the merge.
+           Until vocab reaches vocab_size or no pairs remain.
 
-    vocab = {}
-    next_id = 0
+    Efficiency requirement:
+        After each merge, only update counts for pairs that OVERLAP with
+        the merged pair. Use a heap to pick the best pair in O(log n).
 
-    for i in range(256): # O(1)
-        vocab[next_id] = bytes([i])
-        next_id += 1
+    Args:
+        input_path: str | os.PathLike -- path to training text file (UTF-8)
+        vocab_size: int -- target vocabulary size
+        special_tokens: list[str] -- e.g. ['<|endoftext|>']
+                        Added to vocab but never merged into or from.
 
-    for st in special_tokens:
-        vocab[next_id] = st.encode("utf-8")
-        next_id += 1
-
-    seqs = {}                    
-    seq_freqs = {}               
-    pair_locs = defaultdict(set) 
-    pair_counts = defaultdict(int)
-
-    seq_id = 0
-
-    for seq_tuple, freq in pretokens.items():
-        seq = list(seq_tuple)
-        seqs[seq_id] = seq
-        seq_freqs[seq_id] = freq
-
-        for i in range(len(seq) - 1):
-            pair = (seq[i], seq[i + 1])
-            pair_counts[pair] += freq
-            pair_locs[pair].add(seq_id)
-        
-        seq_id += 1
-
-    heap = []
-    for pair, freq in pair_counts.items():
-        heapq.heappush(heap, helper_classes.MergePriority(freq, pair))
-
-    merges = []
-    special_bytes_set = {st.encode("utf-8") for st in special_tokens}
-
-    while len(vocab) < vocab_size and heap:
-        node = heapq.heappop(heap)
-        freq, pair = node.freq, node.pair
-
-        if pair_counts[pair] != freq or freq == 0:
-            continue
-
-        A, B = pair
-
-        if A in special_bytes_set or B in special_bytes_set: # O(1)
-            pair_counts[pair] = 0
-            continue
-
-        new_tok = A + B
-
-        vocab[next_id] = new_tok
-        next_id += 1
-        merges.append(pair)
-
-        affected_seqs = sorted(pair_locs[pair])
-        pair_counts[pair] = 0
-        del pair_locs[pair]
-
-        updates = set()
-
-        for sid in affected_seqs:
-            seq = seqs[sid]
-            sfreq = seq_freqs[sid]
-
-            old_pairs = defaultdict(int)
-            for j in range(len(seq) - 1):
-                old_pairs[(seq[j], seq[j+1])] += 1
-
-            new_seq = []
-            i = 0
-            while i < len(seq):
-                if i + 1 < len(seq) and seq[i] == A and seq[i+1] == B:
-                    new_seq.append(new_tok)
-                    i += 2
-                else:
-                    new_seq.append(seq[i])
-                    i += 1
-            seqs[sid] = new_seq
-
-            new_pairs = defaultdict(int)
-            for j in range(len(new_seq) - 1):
-                new_pairs[(new_seq[j], new_seq[j+1])] += 1
-
-            for p, count in old_pairs.items():
-                pair_counts[p] -= count * sfreq
-                if pair_counts[p] > 0:
-                    updates.add(p)
-
-            for p, count in new_pairs.items():
-                pair_counts[p] += count * sfreq
-                pair_locs[p].add(sid)
-                updates.add(p)
-
-        for p in updates:
-            f = pair_counts[p]
-            if f > 0:
-                heapq.heappush(heap, helper_classes.MergePriority(f, p))
-
-    return vocab, merges
+    Returns:
+        vocab:  dict[int, bytes] -- token_id -> token bytes
+        merges: list[tuple[bytes, bytes]] -- merge operations in order
+    """
+    raise NotImplementedError

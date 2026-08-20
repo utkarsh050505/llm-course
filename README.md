@@ -1,4 +1,4 @@
-# LLM Course — Assignment 1: Building a Transformer LM from Scratch
+# LLM Course — Building a Transformer LM from Scratch
 
 Welcome to Assignment 1! In this assignment, you will build all of the core components needed to train and run a decoder-only Transformer language model (GPT-style) completely from first principles.
 
